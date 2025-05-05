@@ -19,36 +19,29 @@
 
 */
 
-// создание обьекта класса и испытание изменения его стоимости
-// а также последующий вывод для проверки результата
-
-Merchandise test = new Merchandise("test", '$', 12, 55);
-
-test.print();
-
-test.loose_price("5.95");
-
-test.print();
-
-test.loose_price("7.48");
-
-test.print();
-
 public class Money
 {
-    // знак валюты
     protected char _sign;
-    // целая часть
     protected int _whole;
-    // дробная
     protected int _fract;
 
 
     public Money(char sign, int whole, int fract)
     {
-        _sign = sign;
-        _whole = whole;
-        _fract = fract;
+        try
+        {
+            if (fract >= 100 || whole < 0 || fract < 0) 
+            {
+                throw new MyException("Один или оба из переданных вами числовых аргументов являются недопустимыми.");
+            }
+            _sign = sign;
+            _whole = whole;
+            _fract = fract;
+        }
+        catch (MyException e)
+        {
+            WriteLine(e.ToString());
+        }
     }
 
     public char Sign
@@ -60,7 +53,16 @@ public class Money
     public int Whole
     {
         get { return _whole; }
-        set { _whole = value; }
+        set
+        {
+            // проверка на отрицательность значения
+            if (value < 0)
+            {
+                throw new MyException("Значение передаваемое для присвоения дцелой части меньше нуля.");
+            }
+
+            _whole = value; 
+        }
     }
 
     public int Fractional
@@ -68,16 +70,27 @@ public class Money
         get { return _fract; }
         set
         {
-            if (value < 100 && value > 0)
+            
+            try
             {
+                // теперь вместо того чтобы при присвоении
+                // значения превышающего 100 прибавлять лишнее
+                // в целую часть, идёт выброс иключения
+                if (value > 100)
+                {
+                    throw new MyException("Значение которое вы хотите записать в дробную часть превышает допустимое значение (100).");
+                }
+                // проверка на отрицательность значения
+                if (value < 0)
+                {
+                    throw new MyException("Значение передаваемое для присвоения дробной части меньше нуля.");
+                }
+
                 _fract = value;
             }
-            // если было передано значение больше ста,
-            // то идёт прибавление перевеса в целую часть
-            else if (value > 100)
+            catch (MyException e)
             {
-                _whole += value / 100;
-                _fract = value - (100 * value / 100);
+                WriteLine(e.ToString());
             }
         }
     }
@@ -113,81 +126,98 @@ public class Merchandise : Money
     // метод повышения цены
     public void rise_price(string price)
     {
-        // если нету точки, то есть разделителя
-        // между дробной и целой частью, то значит и
-        // самой дробной части нет, поэтому идёт проверка
-        // для правильности дальнейших вычислений
-        if (price.IndexOf('.') != -1)
+        try
         {
-            // создаём 2 переменные в виде символьных массивов т.к.
-            // метод копирования из строки принимает только массив
-            // и сразу задаём им макс. значение на всякий
-            char[] whole_p = new char[char.MaxValue], fract_p = new char[char.MaxValue];
-
-            // в целый буфер копируем числа до точки
-            price.CopyTo(0, whole_p, 0, price.IndexOf('.'));
-            // в дробный после неё и до конца
-            price.CopyTo(price.IndexOf('.') + 1, fract_p, 0, price.Length - price.IndexOf('.') - 1);
-
-            // в целый просто прибавляем скопированное
-            // и конвертированное число с помощью
-            // метода парсе, т.к. с конвертом у мя были проблемы
-            _whole += int.Parse(whole_p);
-
-            // если текущая дробная часть плюс прибавляемая
-            // равняется больше 100, то также идёт перенос
-            // излишка в целую часть денег
-            if ((_fract + int.Parse(fract_p)) >= 100)
+            if (price.IndexOf('.') != -1)
             {
-                _whole += (_fract + int.Parse(fract_p)) / 100;
+                char[] whole_p = new char[char.MaxValue], fract_p = new char[char.MaxValue];
 
-                _fract = (_fract + int.Parse(fract_p)) - (((_fract + int.Parse(fract_p)) / 100) * 100);
+                price.CopyTo(0, whole_p, 0, price.IndexOf('.'));
+                price.CopyTo(price.IndexOf('.') + 1, fract_p, 0, price.Length - price.IndexOf('.') - 1);
+
+                // проверка на то, что были переданы отриц. значения
+                if (whole_p.Contains('-') || fract_p.Contains('-'))
+                {
+                    throw new MyException("Один из переданных параметров является отрицательным.");
+                }
+
+                _whole += int.Parse(whole_p);
+
+                if ((_fract + int.Parse(fract_p)) >= 100)
+                {
+                    _whole += (_fract + int.Parse(fract_p)) / 100;
+
+                    _fract = (_fract + int.Parse(fract_p)) - (((_fract + int.Parse(fract_p)) / 100) * 100);
+                }
+                else
+                {
+                    _fract += int.Parse(fract_p);
+                }
             }
-            // если превышения нет, просто прибавляем
             else
             {
-                _fract += int.Parse(fract_p);
+                // проверка на то, что были переданы отриц. значения
+                if (price.ToCharArray().Contains('-'))
+                {
+                    throw new MyException("Один из переданных параметров является отрицательным.");
+                }
+
+                _whole += int.Parse(price.ToCharArray());
             }
         }
-        // если дробной части нет и вовсе, то
-        // просто извлекаем из строки число и прибавляем
-        else
+        catch (MyException e)
         {
-            _whole += int.Parse(price.ToCharArray());
+            WriteLine(e.ToString());
         }
     }
 
-    // метод для понижения цены товара
-    // (тут всё почти то же самое, поэтому
-    // не буду расписывать лишние коммантарии)
     public void loose_price(string price)
     {
-        if (price.IndexOf('.') != -1)
+        try
         {
-            char[] whole_m = new char[char.MaxValue], fract_m = new char[char.MaxValue];
-
-            price.CopyTo(0, whole_m, 0, price.IndexOf('.'));
-            price.CopyTo(price.IndexOf('.') + 1, fract_m, 0, price.Length - price.IndexOf('.') - 1);
-
-            _whole -= int.Parse(whole_m);
-
-            if ((_fract - int.Parse(fract_m)) <= 0)
+            if (price.IndexOf('.') != -1)
             {
-                _whole -= 1;
+                char[] whole_m = new char[char.MaxValue], fract_m = new char[char.MaxValue];
 
-                _fract = 100 + (_fract - int.Parse(fract_m));
+                price.CopyTo(0, whole_m, 0, price.IndexOf('.'));
+                price.CopyTo(price.IndexOf('.') + 1, fract_m, 0, price.Length - price.IndexOf('.') - 1);
+
+                // проверка на то, что были переданы отриц. значения
+                if (whole_m.Contains('-') || fract_m.Contains('-'))
+                {
+                    throw new MyException("Один из переданных параметров является отрицательным.");
+                }
+
+                _whole -= int.Parse(whole_m);
+
+                if ((_fract - int.Parse(fract_m)) <= 0)
+                {
+                    _whole -= 1;
+
+                    _fract = 100 + (_fract - int.Parse(fract_m));
+                }
+                else
+                {
+                    _fract -= int.Parse(fract_m);
+                }
             }
             else
             {
-                _fract -= int.Parse(fract_m);
+                char[] whole_m = new char[char.MaxValue];
+                price.CopyTo(0, whole_m, 0, price.Length - 1);
+
+                // проверка на то, что были переданы отриц. значения
+                if (whole_m.Contains('-'))
+                {
+                    throw new MyException("Один из переданных параметров является отрицательным.");
+                }
+
+                _whole -= int.Parse(whole_m);
             }
         }
-        else
+        catch (MyException e)
         {
-            char[] whole_m = new char[char.MaxValue];
-            price.CopyTo(0, whole_m, 0, price.Length - 1);
-
-            _whole -= int.Parse(whole_m);
+            WriteLine(e.ToString());
         }
     }
 }
